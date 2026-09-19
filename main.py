@@ -68,7 +68,7 @@ cv2.imwrite(os.path.join(output_dir, '5_filtered.jpg'), filtered)
 # STEP 6: Perform Canny Edge Detection 
 # ---------------------------------------------------------
 #Canny detects edges using low (50) and high (150) hysteresis thresholds
-edges = cv2.Canny(filtered, 50, 150)
+edges = cv2.Canny(filtered, 30, 100)
 
 #Save output 6: canny edges
 cv2.imwrite(os.path.join(output_dir, '6_canny_edges.jpg'), edges)
@@ -121,7 +121,7 @@ valid_colony_count = 0
 
 for i, cnt in enumerate(contours): #Loop through every detected contour 
     area = cv2.contourArea(cnt) #Calculate area in pixels
-    if area < 300: #Filter out small noise artifacts
+    if area < 800 or area > 50000: #Filter out small noise artifacts
         continue
 
     valid_colony_count += 1

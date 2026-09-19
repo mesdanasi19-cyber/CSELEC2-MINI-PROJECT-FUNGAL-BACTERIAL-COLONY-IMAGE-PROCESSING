@@ -65,21 +65,27 @@ filtered = cv2.GaussianBlur(gray, (5, 5), 0)
 cv2.imwrite(os.path.join(output_dir, '5_filtered.jpg'), filtered)
 
 # ---------------------------------------------------------
-# STEP 6: Color-Based Segmentation (HSV Thresholding)
+# STEP 6: Color-Based Segmentation with Dish Boundary Mask
 # ---------------------------------------------------------
-# Define lower and upper HSV bounds for the yellowish/orange fungal growth
-# Saturation (middle value) starts at 20 to ignore grayscale/white glass glare
-lower_colony_color = np.array([0, 20, 80])
+# 1. Color Thresholding
+lower_colony_color = np.array([0, 25, 80])
 upper_colony_color = np.array([180, 255, 255])
-
-# Generate binary mask: white pixels represent colonies, black represents agar
 colony_mask = cv2.inRange(hsv, lower_colony_color, upper_colony_color)
 
-# Apply Morphological Closing to weld internal texture gaps into solid shapes
+# 2. CREATE CIRCULAR DISH MASK (Ignores all pixels outside the dish)
+dish_mask = np.zeros(gray.shape, dtype=np.uint8)
+center_x, center_y = int(width * 0.49), int(height * 0.50) # Center of the dish
+radius = int(min(width, height) * 0.45)                   # Dish radius
+cv2.circle(dish_mask, (center_x, center_y), radius, 255, -1)
+
+# 3. Apply Dish Mask to eliminate outside reflections/countertop
+colony_mask = cv2.bitwise_and(colony_mask, colony_mask, mask=dish_mask)
+
+# 4. Morphological Cleaning
 kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
 cleaned_mask = cv2.morphologyEx(colony_mask, cv2.MORPH_CLOSE, kernel)
 
-# Save mask output to fulfill file requirement #6
+# Save output 6
 cv2.imwrite(os.path.join(output_dir, '6_canny_edges.jpg'), cleaned_mask)
 
 # ---------------------------------------------------------

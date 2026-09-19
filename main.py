@@ -95,10 +95,12 @@ print("\n================ GEOMETRIC ANALYSIS RESULTS ================")
 # ---------------------------------------------------------
 # STEP 8a: Hough Line Detection
 # ---------------------------------------------------------
-lines = cv2.HoughLinesP(edges, 1, np.pi/180, threshold = 100, minlineLength = 50, maxLineGap = 10)
+lines = cv2.HoughLinesP(edges, 1, np.pi/180, threshold = 100, minLineLength = 50, maxLineGap = 10)
 if lines is not None:   
-    for line in lines[:5]:  # Draw first 5 lines in red
-        x1, y1, x2, y2 = line[0]  
+    for l in lines[:5]:  # Draw first 5 lines in red
+        x1, y1, x2, y2 = l 
+        # Convert values to standard integers for cv2.line
+        x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
         cv2.line(final_img, (x1, y1), (x2, y2), (0, 0, 255), 2)  
     print(f"[Hough Lines] Detected {len(lines)} line segments.")
 

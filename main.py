@@ -65,21 +65,29 @@ filtered = cv2.GaussianBlur(gray, (5, 5), 0)
 cv2.imwrite(os.path.join(output_dir, '5_filtered.jpg'), filtered)
 
 # ---------------------------------------------------------
-# STEP 6: Perform Canny Edge Detection 
+# STEP 6: Color-Based Segmentation (HSV Thresholding)
 # ---------------------------------------------------------
-#Canny detects edges using low (50) and high (150) hysteresis thresholds
-edges = cv2.Canny(filtered, 30, 100)
+# Define lower and upper HSV bounds for the yellowish/orange fungal growth
+# Saturation (middle value) starts at 20 to ignore grayscale/white glass glare
+lower_colony_color = np.array([0, 20, 80])
+upper_colony_color = np.array([180, 255, 255])
 
-#Save output 6: canny edges
-cv2.imwrite(os.path.join(output_dir, '6_canny_edges.jpg'), edges)
+# Generate binary mask: white pixels represent colonies, black represents agar
+colony_mask = cv2.inRange(hsv, lower_colony_color, upper_colony_color)
+
+# Apply Morphological Closing to weld internal texture gaps into solid shapes
+kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
+cleaned_mask = cv2.morphologyEx(colony_mask, cv2.MORPH_CLOSE, kernel)
+
+# Save mask output to fulfill file requirement #6
+cv2.imwrite(os.path.join(output_dir, '6_canny_edges.jpg'), cleaned_mask)
 
 # ---------------------------------------------------------
 # STEP 7: Extract and Draw Contours
 # ---------------------------------------------------------
-# findContours locates continuous boundary points along Canny edges
-contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+# Find contours using the clean color mask instead of Canny edges
+contours, _ = cv2.findContours(cleaned_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-#Save output 6: canny edges
 contour_img = cropped.copy()
 cv2.drawContours(contour_img, contours, -1, (0, 255, 0), 2)
 cv2.imwrite(os.path.join(output_dir, '7_contours.jpg'), contour_img)
@@ -95,10 +103,10 @@ print("\n================ GEOMETRIC ANALYSIS RESULTS ================")
 # ---------------------------------------------------------
 # STEP 8a: Hough Line Detection
 # ---------------------------------------------------------
-lines = cv2.HoughLinesP(edges, 1, np.pi/180, threshold = 100, minLineLength = 50, maxLineGap = 10)
+lines = cv2.HoughLinesP(cleaned_mask, 1, np.pi/180, threshold = 100, minLineLength = 50, maxLineGap = 10)
 if lines is not None:   
     for l in lines[:5]:  # Draw first 5 lines in red
-        x1, y1, x2, y2 = l 
+        x1, y1, x2, y2 = l.ravel()
         # Convert values to standard integers for cv2.line
         x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
         cv2.line(final_img, (x1, y1), (x2, y2), (0, 0, 255), 2)  
@@ -107,7 +115,7 @@ if lines is not None:
 # ---------------------------------------------------------
 # STEP 8b: Hough Circle Detection
 # --------------------------------------------------------- 
-circles = cv2.HoughCircles(filtered, cv2.HOUGH_GRADIENT, dp=1.2, minDist=100, param1=50, param2=30, minRadius=50, maxRadius=400)   
+circles = cv2.HoughCircles(filtered, cv2.HOUGH_GRADIENT, dp=1.2, minDist=100, param1=50, param2=30, minRadius=200, maxRadius=450)
 if circles is not None:   
     circles = np.uint16(np.around(circles))  # Convert circle values to integers
     for c in circles[0, :3]:  # Draw top 3 detected circles in yellow
@@ -121,7 +129,7 @@ valid_colony_count = 0
 
 for i, cnt in enumerate(contours): #Loop through every detected contour 
     area = cv2.contourArea(cnt) #Calculate area in pixels
-    if area < 800 or area > 50000: #Filter out small noise artifacts
+    if area < 400 or area > 300000: #Filter out small noise artifacts
         continue
 
     valid_colony_count += 1
